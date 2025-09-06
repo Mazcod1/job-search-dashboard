@@ -1,0 +1,85 @@
+// lib/adapters.js
+import fetch from "isomorphic-unfetch";
+import * as cheerio from "cheerio";
+
+/**
+ * Adapter interface:
+ * async function scrape(url) => returns array of job objects:
+ * { id, title, link, summary, postedDate, closingDate, source }
+ */
+
+// Example adapter for UN Careers (illustrative)
+export async function adapter_un(url){
+  const res = await fetch(url, { headers: { "user-agent": "JobHubBot/1.0" }});
+  const html = await res.text();
+  const $ = cheerio.load(html);
+  const jobs = [];
+  // UN pages vary; this is a template — we'll extract anchor text with job words
+  $("a").each((i, a) => {
+    const href = $(a).attr("href") || "";
+    const txt = $(a).text().trim();
+    if(/job|vacanc|position|opportunity/i.test(href+txt)){
+      const link = new URL(href, url).toString();
+      jobs.push({ title: txt || "UN Job", link, summary: null, source: "UN Careers" });
+    }
+  });
+  return jobs;
+}
+
+// Generic fallback scraper
+export async function adapter_generic(url){
+  const res = await fetch(url, { headers: { "user-agent": "JobHubBot/1.0" }});
+  const html = await res.text();
+  const $ = cheerio.load(html);
+  const items = [];
+
+  $("a[href]").each((_, a) => {
+    const href = $(a).attr("href") || "";
+    const txt = ($(a).text() || "").trim();
+    if(/job|vacanc|career|position|opportun|apply|recruit/i.test(href+txt)){
+      items.push({
+        title: txt || $(a).attr("title") || "Job posting",
+        link: new URL(href, url).toString(),
+        summary: null
+      });
+    }
+  });
+
+  // Also scan blocks for job-text
+  $("article, li, div").each((_, el) => {
+    const text = $(el).text().trim();
+    if(text.length > 60 && /job|vacanc|career|position|opportun/i.test(text)){
+      const a = $(el).find("a[href]").first();
+      const href = a.attr("href");
+      const title = a.text().trim() || text.slice(0,80);
+      items.push({
+        title,
+        link: href ? new URL(href, url).toString() : url,
+        summary: text.slice(0,300)
+      });
+    }
+  });
+
+  // dedupe
+  const seen = new Set();
+  const out = [];
+  for(const it of items){
+    const key = (it.link||"") + "|" + (it.title||"");
+    if(seen.has(key)) continue;
+    seen.add(key);
+    out.push(it);
+  }
+  return out.slice(0, 200);
+}
+
+// central function to pick adapter by hostname
+export async function scrapeWithAdapters(url){
+  try{
+    const hostname = new URL(url).hostname;
+    if(hostname.includes("careers.un.org")) return adapter_un(url);
+    // add more host-specific adapters here as you identify sites
+    return adapter_generic(url);
+  }catch(e){
+    return [];
+  }
+}
