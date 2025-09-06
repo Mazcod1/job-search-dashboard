@@ -1,0 +1,27 @@
+// pages/api/urls.js
+import { supabaseAdmin } from "../../lib/supabaseClient";
+
+export default async function handler(req, res){
+  // Simple API — no auth in MVP (we can add later)
+  if(req.method === "GET"){
+    const { data, error } = await supabaseAdmin.from("job_urls").select("*").order("created_at", { ascending: false });
+    if(error) return res.status(500).json({ error: error.message });
+    return res.json({ urls: data });
+  }
+  if(req.method === "POST"){
+    const { url, name } = req.body;
+    if(!url) return res.status(400).json({ error: "Missing url" });
+    const nickname = name && name.trim() ? name.trim() : (new URL(url)).hostname.replace("www.","");
+    const { data, error } = await supabaseAdmin.from("job_urls").insert([{ url, name: nickname }]).select();
+    if(error) return res.status(500).json({ error: error.message });
+    return res.json({ added: data[0] });
+  }
+  if(req.method === "DELETE"){
+    const { id } = req.body;
+    if(!id) return res.status(400).json({ error: "Missing id" });
+    const { error } = await supabaseAdmin.from("job_urls").delete().eq("id", id);
+    if(error) return res.status(500).json({ error: error.message });
+    return res.json({ ok: true });
+  }
+  return res.status(405).end();
+}
