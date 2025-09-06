@@ -1,0 +1,47 @@
+// lib/ai.js
+import OpenAI from "openai";
+const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+export async function summarizeJob(title, description){
+  const prompt = `Summarize this job posting in 2-3 bullet points, emphasize required skills and experience. Job title: ${title}. Description: ${description}`;
+  const resp = await client.responses.create({
+    model: "gpt-4o-mini", // or "gpt-4o" / "gpt-4" depending on your account
+    input: prompt,
+    max_output_tokens: 300
+  });
+  // get text
+  const txt = Array.isArray(resp.output) ? resp.output.map(o=>o.content?.map(c=>c.text || "").join("") || "").join("\n") : JSON.stringify(resp.output);
+  return txt || null;
+}
+
+export async function recommendCourses(skillsList){
+  // skillsList: string describing missing skills or job skills
+  const prompt = `Recommend 5 free online courses (Coursera, edX, free course pages, YouTube) that help someone learn: ${skillsList}. Return as JSON array [{title, provider, url}].`;
+  const resp = await client.responses.create({
+    model: "gpt-4o-mini",
+    input: prompt,
+    max_output_tokens: 400
+  });
+  const text = Array.isArray(resp.output) ? resp.output.map(o=>o.content?.map(c=>c.text || "").join("") || "").join("\n") : JSON.stringify(resp.output);
+  try{
+    // attempt to extract JSON from response
+    const jsonStart = text.indexOf("[");
+    const json = jsonStart >= 0 ? JSON.parse(text.slice(jsonStart)) : null;
+    if(Array.isArray(json)) return json;
+  }catch(e){}
+  // fallback to raw string in one item
+  return [{ title: "Suggested learning", provider: "Various", url: "https://www.coursera.org" , notes: text }];
+}
+
+export async function computeMatchScore(cvText, jobText){
+  // returns number 0-100
+  const prompt = `Given the CV/resume text: ${cvText || "NO_CV_PROVIDED"} and job description: ${jobText}, return a single integer percentage between 0 and 100 that represents how closely the CV matches the job. Only return the number.`;
+  const resp = await client.responses.create({
+    model: "gpt-4o-mini",
+    input: prompt,
+    max_output_tokens: 10
+  });
+  const txt = Array.isArray(resp.output) ? resp.output.map(o=>o.content?.map(c=>c.text || "").join("") || "").join("") : String(resp.output);
+  const num = parseInt(txt.replace(/\D/g,""), 10);
+  return Number.isFinite(num) ? Math.max(0, Math.min(100, num)) : 0;
+}
