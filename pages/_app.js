@@ -1,4 +1,5 @@
 import "../styles.css";
+import Link from 'next/link'; // Import Link component
 
 export default function MyApp({ Component, pageProps }) {
   return (
@@ -6,33 +7,32 @@ export default function MyApp({ Component, pageProps }) {
       {/* Sidebar */}
       <div style={{
         width: "250px",
-        backgroundColor: "#1E293B",
+        backgroundColor: "#1E2938",
         color: "#fff",
         padding: "20px",
         display: "flex",
         flexDirection: "column",
-        gap: "20px"
+        gap: "20px", 
+        overflowY: "auto"
       }}>
         <h2>Job Hub</h2>
-        <a href="/" style={linkStyle}>Dashboard</a>
-        <a href="/manage-urls" style={linkStyle}>Manage URLs</a>
-        <a href="/upload-cv" style={linkStyle}>Upload CV</a>
-        <a href="/alerts" style={linkStyle}>Alerts & Settings</a>
+        <Link href="/">
+          <a className="link-style">Dashboard</a>
+        </Link>
+        <Link href="/manage-urls">
+          <a className="link-style">Manage URLs</a>
+        </Link>
+        <Link href="/upload-cv">
+          <a className="link-style">Upload CV</a>
+        </Link>
+        <Link href="/alerts">
+          <a className="link-style">Alerts & Settings</a>
+        </Link>
       </div>
-
-      {/* Main Content */}
-      <div style={{ flex: 1, backgroundColor: "#f8fafc", padding: "20px" }}>
+      {/* The main content area where the different pages will be rendered */}
+      <div style={{ flexGrow: 1, padding: "20px" }}>
         <Component {...pageProps} />
       </div>
     </div>
   );
 }
-
-const linkStyle = {
-  color: "#fff",
-  textDecoration: "none",
-  backgroundColor: "#334155",
-  padding: "10px",
-  borderRadius: "6px",
-  marginBottom: "5px"
-};
